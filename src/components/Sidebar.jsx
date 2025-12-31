@@ -6,6 +6,7 @@ import {
   MapPin,
 } from "lucide-react";
 import "./Sidebar.css";
+import { List } from '../../node_modules/lucide-react/dist/esm/icons';
 
 export default function Sidebar({ isOpen, isMobile, closeSidebar }) {
   const user = {
@@ -53,7 +54,7 @@ export default function Sidebar({ isOpen, isMobile, closeSidebar }) {
           onClick={handleNavClick}
         >
           <span className="nav-icon"><MapPin size={20} /></span>
-          {isOpen && <span className="nav-label">Tracker</span>}
+          {isOpen && <span className="nav-label">Vehical List</span>}
         </NavLink>
       </nav>
 
