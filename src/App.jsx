@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Routes, Route } from "react-router-dom";
-import { Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
+import Footer from "./components/Footer";
+
 import Dashboard from "./pages/Dashboard";
 import CreateUser from "./pages/CreateUser";
 
@@ -41,7 +42,7 @@ import AddDevice from "./pages/AddDevice";
 import EditDevice from "./pages/EditDevice";
 import DeviceDetail from "./pages/DeviceDetail";
 
-/* ✅ DEVICE MOVEMENT */
+/* DEVICE MOVEMENT */
 import DeviceMovementMaster from "./pages/DeviceMovementMaster";
 import CreateDeviceMovement from "./pages/CreateDeviceMovement";
 import ReceiveDeviceMovement from "./pages/ReceiveDeviceMovement";
@@ -50,10 +51,7 @@ import DeviceMovementDetail from "./pages/DeviceMovementDetail";
 /* TRACKER */
 import TrackerPage from "./pages/TrackerPage";
 import TrackerMap from "./pages/TrackerMap";
-
 import VehicleTracking from "./pages/VehicleTracking";
-
-
 
 import "./App.css";
 
@@ -61,7 +59,6 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Responsive sidebar behavior
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 1024;
@@ -96,15 +93,10 @@ export default function App() {
         <Header toggleSidebar={toggleSidebar} />
 
         <Routes>
-          {/* ✅ DEFAULT REDIRECT */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-          {/* DASHBOARD */}
           <Route path="/dashboard" element={<Dashboard />} />
-
-          {/* CREATE USER */}
           <Route path="/create-user" element={<CreateUser />} />
-
 
           {/* LENDER */}
           <Route path="/lenders" element={<LenderMaster />} />
@@ -142,7 +134,7 @@ export default function App() {
           <Route path="/devices/edit/:id" element={<EditDevice />} />
           <Route path="/devices/view/:id" element={<DeviceDetail />} />
 
-          {/* ✅ DEVICE MOVEMENT */}
+          {/* DEVICE MOVEMENT */}
           <Route path="/device-movement" element={<DeviceMovementMaster />} />
           <Route path="/device-movement/create/:deviceId" element={<CreateDeviceMovement />} />
           <Route path="/device-movement/receive/:movementId" element={<ReceiveDeviceMovement />} />
@@ -151,12 +143,11 @@ export default function App() {
           {/* TRACKER */}
           <Route path="/tracker" element={<TrackerPage />} />
           <Route path="/tracker/map/:vehicleNo" element={<TrackerMap />} />
-          {/* VEHICLE TRACKING */}
           <Route path="/vehicle-tracking" element={<VehicleTracking />} />
-
-
         </Routes>
 
+        {/* ✅ GLOBAL FOOTER */}
+        <Footer />
       </div>
 
       {/* Mobile overlay */}
