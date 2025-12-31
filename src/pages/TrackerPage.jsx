@@ -1,72 +1,381 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Map } from "lucide-react";
+import { MapPin, X } from "lucide-react";
+import "./TrackerPage.css";
+
+// Dummy vehicle data with locations
+const generateDummyVehicles = () => {
+  const locations = [
+    { lat: 28.6139, lng: 77.2090, city: "New Delhi" },
+    { lat: 19.0760, lng: 72.8777, city: "Mumbai" },
+    { lat: 13.0827, lng: 80.2707, city: "Chennai" },
+    { lat: 22.5726, lng: 88.3639, city: "Kolkata" },
+    { lat: 12.9716, lng: 77.5946, city: "Bangalore" },
+    { lat: 17.3850, lng: 78.4867, city: "Hyderabad" },
+    { lat: 23.0225, lng: 72.5714, city: "Ahmedabad" },
+    { lat: 18.5204, lng: 73.8567, city: "Pune" },
+    { lat: 26.9124, lng: 75.7873, city: "Jaipur" },
+    { lat: 21.1702, lng: 72.8311, city: "Surat" },
+  ];
+
+  return Array.from({ length: 20 }, (_, i) => ({
+    id: i + 1,
+    vehicleNo: `DL-${10 + i}-AB-${1000 + i}`,
+    status: i % 3 === 0 ? "Moving" : i % 2 === 0 ? "Stopped" : "Idle",
+    location: locations[i % locations.length],
+    driver: `Driver ${i + 1}`,
+    lastUpdate: new Date(Date.now() - Math.random() * 3600000).toLocaleString('en-IN'),
+  }));
+};
 
 export default function TrackerPage() {
   const navigate = useNavigate();
+  const [vehicles] = useState(generateDummyVehicles());
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
-  const vehicles = Array.from({ length: 20 }, (_, i) => ({
-    id: i + 1,
-    vehicleNo: `WB-12-AB-${1000 + i}`,
-    status: i % 2 === 0 ? "Active" : "Inactive",
-  }));
+  const filteredVehicles = vehicles.filter((v) =>
+    v.vehicleNo.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleViewMap = (vehicle) => {
+    setSelectedVehicle(vehicle);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedVehicle(null);
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "Moving":
+        return "#2e7d32"; // Green
+      case "Stopped":
+        return "#c62828"; // Red
+      case "Idle":
+        return "#f57c00"; // Orange
+      default:
+        return "#666";
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const colors = {
+      Moving: { bg: "#e8f5e9", color: "#2e7d32" },
+      Stopped: { bg: "#ffebee", color: "#c62828" },
+      Idle: { bg: "#fff3e0", color: "#f57c00" },
+    };
+    const style = colors[status] || { bg: "#f5f5f5", color: "#666" };
+    return style;
+  };
 
   return (
-    <div className="lender-page">
-      {/* PAGE HEADER (NO IMAGE) */}
-      <div className="card">
-        <h2 className="text">Vehicle Tracker</h2>
+    <div className="tracker-page">
+      {/* PAGE HEADER */}
+      <div className="card page-header">
+        <h2>Vehicle Tracker</h2>
+        <p style={{ margin: "0.5rem 0 0 0", color: "#666", fontSize: "0.9rem" }}>
+          Real-time vehicle tracking and monitoring
+        </p>
       </div>
 
       {/* TOOLBAR */}
       <div className="card toolbar">
         <input
           type="text"
-          placeholder="Search vehicle number..."
+          placeholder="Search by vehicle number..."
           className="search-input"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{
+            flex: 1,
+            padding: "0.75rem",
+            border: "1px solid #ccc",
+            borderRadius: "4px",
+            fontSize: "0.95rem",
+          }}
         />
-        <button>Add More</button>
       </div>
 
       {/* TABLE */}
       <div className="card">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Vehicle Number</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {vehicles.map((v) => (
-              <tr key={v.id}>
-                <td>{v.id}</td>
-                <td>{v.vehicleNo}</td>
-                <td>
-                  <span
-                    style={{
-                      color: v.status === "Active" ? "green" : "red",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {v.status}
-                  </span>
-                </td>
-                <td>
-                  <button
-                    onClick={() => navigate(`/tracker/map/${v.vehicleNo}`)}
-                    style={{ background: "none" }}
-                  >
-                    <Map size={18} />
-                  </button>
-                </td>
+        <div style={{ overflowX: "auto" }}>
+          <table className="tracker-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Vehicle Number</th>
+                <th>Driver</th>
+                <th>Status</th>
+                <th>Location</th>
+                <th>Last Update</th>
+                <th>Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {filteredVehicles.length === 0 ? (
+                <tr>
+                  <td colSpan="7" style={{ textAlign: "center", padding: "2rem" }}>
+                    No vehicles found
+                  </td>
+                </tr>
+              ) : (
+                filteredVehicles.map((vehicle, index) => {
+                  const statusStyle = getStatusBadge(vehicle.status);
+                  return (
+                    <tr key={vehicle.id}>
+                      <td>{index + 1}</td>
+                      <td>
+                        <span style={{ fontFamily: "monospace", fontWeight: "500" }}>
+                          {vehicle.vehicleNo}
+                        </span>
+                      </td>
+                      <td>{vehicle.driver}</td>
+                      <td>
+                        <span
+                          style={{
+                            padding: "0.25rem 0.75rem",
+                            borderRadius: "12px",
+                            fontSize: "0.85rem",
+                            fontWeight: "500",
+                            backgroundColor: statusStyle.bg,
+                            color: statusStyle.color,
+                            display: "inline-block",
+                          }}
+                        >
+                          {vehicle.status}
+                        </span>
+                      </td>
+                      <td>{vehicle.location.city}</td>
+                      <td style={{ fontSize: "0.85rem", color: "#666" }}>
+                        {vehicle.lastUpdate}
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => handleViewMap(vehicle)}
+                          className="map-icon-btn"
+                          title="View on Map"
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "0.5rem",
+                            borderRadius: "4px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "background-color 0.2s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = "#f5f5f5";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = "transparent";
+                          }}
+                        >
+                          <MapPin size={20} color="#000" strokeWidth={2} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* MODAL */}
+      {showModal && selectedVehicle && (
+        <MapModal vehicle={selectedVehicle} onClose={closeModal} />
+      )}
     </div>
+  );
+}
+
+// Map Modal Component
+function MapModal({ vehicle, onClose }) {
+  const mapUrl = `https://www.google.com/maps/embed/v1/place?key=YOUR_GOOGLE_MAPS_API_KEY&q=${vehicle.location.lat},${vehicle.location.lng}&zoom=15`;
+  
+  // Fallback: Use Google Maps static URL without API key (limited features)
+  const fallbackMapUrl = `https://maps.google.com/maps?q=${vehicle.location.lat},${vehicle.location.lng}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="modal-overlay"
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          padding: "1rem",
+        }}
+      >
+        {/* Modal Content */}
+        <div
+          className="modal-content"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            backgroundColor: "white",
+            borderRadius: "8px",
+            maxWidth: "900px",
+            width: "100%",
+            maxHeight: "90vh",
+            overflow: "hidden",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+          }}
+        >
+          {/* Modal Header */}
+          <div
+            style={{
+              padding: "1.5rem",
+              borderBottom: "1px solid #e0e0e0",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <h3 style={{ margin: 0, fontSize: "1.25rem" }}>
+                {vehicle.vehicleNo}
+              </h3>
+              <p style={{ margin: "0.5rem 0 0 0", color: "#666", fontSize: "0.9rem" }}>
+                {vehicle.location.city} • {vehicle.status}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "0.5rem",
+                borderRadius: "4px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#f5f5f5";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+            >
+              <X size={24} color="#000" />
+            </button>
+          </div>
+
+          {/* Vehicle Info */}
+          <div
+            style={{
+              padding: "1rem 1.5rem",
+              backgroundColor: "#f9f9f9",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: "1rem",
+              borderBottom: "1px solid #e0e0e0",
+            }}
+          >
+            <div>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "#666" }}>Driver</p>
+              <p style={{ margin: "0.25rem 0 0 0", fontWeight: "500" }}>
+                {vehicle.driver}
+              </p>
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "#666" }}>
+                Coordinates
+              </p>
+              <p style={{ margin: "0.25rem 0 0 0", fontWeight: "500", fontFamily: "monospace" }}>
+                {vehicle.location.lat.toFixed(4)}, {vehicle.location.lng.toFixed(4)}
+              </p>
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "#666" }}>
+                Last Update
+              </p>
+              <p style={{ margin: "0.25rem 0 0 0", fontWeight: "500" }}>
+                {vehicle.lastUpdate}
+              </p>
+            </div>
+          </div>
+
+          {/* Map */}
+          <div style={{ position: "relative", height: "500px" }}>
+            <iframe
+              title={`Map for ${vehicle.vehicleNo}`}
+              src={fallbackMapUrl}
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              allowFullScreen
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
+
+          {/* Modal Footer */}
+          <div
+            style={{
+              padding: "1rem 1.5rem",
+              borderTop: "1px solid #e0e0e0",
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: "0.5rem",
+            }}
+          >
+            <button
+              onClick={onClose}
+              style={{
+                padding: "0.75rem 1.5rem",
+                backgroundColor: "#f5f5f5",
+                color: "#000",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "0.95rem",
+                fontWeight: "500",
+              }}
+            >
+              Close
+            </button>
+            <button
+              onClick={() =>
+                window.open(
+                  `https://www.google.com/maps/search/?api=1&query=${vehicle.location.lat},${vehicle.location.lng}`,
+                  "_blank"
+                )
+              }
+              style={{
+                padding: "0.75rem 1.5rem",
+                backgroundColor: "#1976d2",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "0.95rem",
+                fontWeight: "500",
+              }}
+            >
+              Open in Google Maps
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
