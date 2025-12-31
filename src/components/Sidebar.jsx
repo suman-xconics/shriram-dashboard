@@ -54,7 +54,7 @@ export default function Sidebar({ isOpen, isMobile, closeSidebar }) {
           onClick={handleNavClick}
         >
           <span className="nav-icon"><MapPin size={20} /></span>
-          {isOpen && <span className="nav-label">Vehical List</span>}
+          {isOpen && <span className="nav-label">Vehicle List</span>}
         </NavLink>
       </nav>
 
