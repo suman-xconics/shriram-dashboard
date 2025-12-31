@@ -76,9 +76,9 @@ export default function TrackerPage() {
     <div className="tracker-page">
       {/* PAGE HEADER */}
       <div className="card page-header">
-        <h2>Vehicle Tracker</h2>
+        <h2>Vehicle List</h2>
         <p style={{ margin: "0.5rem 0 0 0", color: "#666", fontSize: "0.9rem" }}>
-          Real-time vehicle tracking and monitoring
+          All vehicles list
         </p>
       </div>
 
