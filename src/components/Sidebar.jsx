@@ -4,9 +4,9 @@ import {
   LogOut,
   Building2,
   MapPin,
+  List,
 } from "lucide-react";
 import "./Sidebar.css";
-import { List } from '../../node_modules/lucide-react/dist/esm/icons';
 
 export default function Sidebar({ isOpen, isMobile, closeSidebar }) {
   const user = {
@@ -20,7 +20,9 @@ export default function Sidebar({ isOpen, isMobile, closeSidebar }) {
 
   return (
     <aside
-      className={`sidebar ${isOpen ? "open" : "collapsed"} ${isMobile ? "mobile" : ""}`}
+      className={`sidebar ${isOpen ? "open" : "collapsed"} ${
+        isMobile ? "mobile" : ""
+      }`}
     >
       <div className="brand">
         <span className="brand-text">
@@ -31,7 +33,9 @@ export default function Sidebar({ isOpen, isMobile, closeSidebar }) {
       <nav className="nav">
         <NavLink
           to="/dashboard"
-          className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+          className={({ isActive }) =>
+            `nav-item ${isActive ? "active" : ""}`
+          }
           onClick={handleNavClick}
         >
           <span className="nav-icon"><Home size={20} /></span>
@@ -40,27 +44,46 @@ export default function Sidebar({ isOpen, isMobile, closeSidebar }) {
 
         <NavLink
           to="/lender-branches"
-          className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+          className={({ isActive }) =>
+            `nav-item ${isActive ? "active" : ""}`
+          }
           onClick={handleNavClick}
         >
           <span className="nav-icon"><Building2 size={20} /></span>
           {isOpen && <span className="nav-label">Lender Branch</span>}
         </NavLink>
 
-        {/* ✅ TRACKER MENU */}
+        {/* Vehicle List */}
         <NavLink
           to="/tracker"
-          className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+          className={({ isActive }) =>
+            `nav-item ${isActive ? "active" : ""}`
+          }
           onClick={handleNavClick}
         >
           <span className="nav-icon"><MapPin size={20} /></span>
           {isOpen && <span className="nav-label">Vehicle List</span>}
         </NavLink>
+
+        {/* ✅ NEW VEHICLE TRACKING */}
+        <NavLink
+          to="/vehicle-tracking"
+          className={({ isActive }) =>
+            `nav-item ${isActive ? "active" : ""}`
+          }
+          onClick={handleNavClick}
+        >
+          <span className="nav-icon"><List size={20} /></span>
+          {isOpen && <span className="nav-label">Vehicle Tracking</span>}
+        </NavLink>
       </nav>
 
       <div className="sidebar-footer">
         <div className="user-info">
-          <div className="profile-avatar">{user.name.charAt(0)}</div>
+          <div className="profile-avatar">
+            {user.name.charAt(0)}
+          </div>
+
           {isOpen && (
             <div className="user-text">
               <strong>{user.name}</strong>
