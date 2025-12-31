@@ -1,6 +1,7 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { getInstallationRequisitions } from "../api/installationRequisitionApi";
-import { Eye, X } from "lucide-react";
+import { getLenderBranchById } from "../api/lenderBranchApi";
+import { Eye, X, Upload } from "lucide-react";
 import "./Dashboard.css";
 
 export default function Dashboard() {
@@ -10,6 +11,9 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const [selectedRequisition, setSelectedRequisition] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [branchData, setBranchData] = useState({});
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   /* =====================
      FETCH DATA ON MOUNT
@@ -26,12 +30,151 @@ export default function Dashboard() {
 
     if (result.success) {
       setRequisitions(result.data);
+      fetchBranchData(result.data);
     } else {
       setError(result.error);
       setRequisitions([]);
     }
 
     setLoading(false);
+  };
+
+  /* =====================
+     FETCH BRANCH DATA FOR ALL REQUISITIONS
+     ===================== */
+  const fetchBranchData = async (requisitions) => {
+    const uniqueBranchIds = [...new Set(
+      requisitions
+        .map(req => req.branchId)
+        .filter(id => id != null)
+    )];
+
+    const branchPromises = uniqueBranchIds.map(async (branchId) => {
+      const result = await getLenderBranchById(branchId);
+      return {
+        branchId,
+        data: result.success ? result.data : null
+      };
+    });
+
+    const branchResults = await Promise.all(branchPromises);
+
+    const branchMap = {};
+    branchResults.forEach(({ branchId, data }) => {
+      branchMap[branchId] = data;
+    });
+
+    setBranchData(branchMap);
+  };
+
+  /* =====================
+     FILE UPLOAD HANDLERS
+     ===================== */
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const convertFileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64String = reader.result.split(',')[1];
+        resolve(base64String);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
+    
+    if (!file) return;
+
+    const allowedTypes = [
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/csv'
+    ];
+
+    if (!allowedTypes.includes(file.type) && 
+        !file.name.endsWith('.xlsx') && 
+        !file.name.endsWith('.xls') && 
+        !file.name.endsWith('.csv')) {
+      alert('Please upload an Excel file (.xlsx, .xls) or CSV file');
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+
+    try {
+      const base64Content = await convertFileToBase64(file);
+
+      const response = await fetch('http://172.105.36.66:8020/installationRequisition/create/bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: base64Content
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert('File uploaded successfully!');
+        fetchRequisitions();
+      } else {
+        throw new Error(result.message || 'Failed to upload file');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      setError(err.message || 'Failed to upload file');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  /* =====================
+     GET BRANCH NAME
+     ===================== */
+  const getBranchName = (branchId) => {
+    if (!branchId) return "N/A";
+    const branch = branchData[branchId];
+    return branch?.branchName || "Loading...";
+  };
+
+  /* =====================
+     GET STATE FROM BRANCH DATA
+     ===================== */
+  const getState = (branchId) => {
+    if (!branchId) return "N/A";
+    const branch = branchData[branchId];
+    return branch?.state || "N/A";
+  };
+
+  /* =====================
+     FORMAT DATE FOR TABLE
+     ===================== */
+  const formatTableDate = (isoDateString) => {
+    if (!isoDateString) return "N/A";
+    try {
+      const date = new Date(isoDateString);
+      if (isNaN(date.getTime())) return "N/A";
+
+      return date.toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return "N/A";
+    }
   };
 
   /* =====================
@@ -52,13 +195,10 @@ export default function Dashboard() {
   const allowedStatuses = ["NEW", "IN_PROGRESS", "COMPLETED"];
 
   const filteredRequisitions = useMemo(() => {
-    // First filter only allowed statuses
     let filtered = requisitions.filter((r) => allowedStatuses.includes(r.status));
 
-    // Then apply user filter
     if (filter === "ALL") return filtered;
 
-    // Map display filter back to actual status
     const filterMap = {
       Opened: "NEW",
       "In Progress": "IN_PROGRESS",
@@ -111,34 +251,99 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="dashboard-page">
+    <div style={{
+      width: '100%',
+      maxWidth: '100vw',
+      height: '100vh',
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
+      backgroundColor: '#f5f5f5',
+      boxSizing: 'border-box'
+    }}>
       {/* HEADER */}
-      <div className="dashboard-header">
+      <div style={{
+        padding: '1rem 1.5rem',
+        backgroundColor: 'white',
+        borderBottom: '1px solid #e5e7eb',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexShrink: 0
+      }}>
         <div>
-          <h2>All Tickets</h2>
-          <p className="breadcrumb">Home • Tickets</p>
+          <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>All Tickets</h2>
+          <p style={{ margin: '0.25rem 0 0 0', color: '#666', fontSize: '0.875rem' }}>Home • Tickets</p>
+        </div>
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+          <button
+            onClick={handleUploadClick}
+            disabled={uploading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.625rem 1.25rem',
+              backgroundColor: '#4F46E5',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              cursor: uploading ? 'not-allowed' : 'pointer',
+              opacity: uploading ? 0.6 : 1,
+              transition: 'all 0.2s'
+            }}
+          >
+            <Upload size={16} />
+            {uploading ? 'Uploading...' : 'Upload Sheet'}
+          </button>
         </div>
       </div>
 
       {/* SUMMARY CARDS */}
-      <div className="summary-grid">
-        <SummaryCard title="Total" value={counts.total} color="blue" />
-        <SummaryCard title="Opened" value={counts.opened} color="green" />
-        <SummaryCard
-          title="In Progress"
-          value={counts.inProgress}
-          color="orange"
-        />
-        <SummaryCard title="Closed" value={counts.closed} color="teal" />
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, 1fr)',
+        gap: '1rem',
+        padding: '1rem 1.5rem',
+        flexShrink: 0
+      }}>
+        <SummaryCard title="Total" value={counts.total} color="#3B82F6" />
+        <SummaryCard title="Opened" value={counts.opened} color="#10B981" />
+        <SummaryCard title="In Progress" value={counts.inProgress} color="#F59E0B" />
+        <SummaryCard title="Closed" value={counts.closed} color="#14B8A6" />
       </div>
 
       {/* FILTERS */}
-      <div className="dashboard-filters">
+      <div style={{
+        padding: '0 1.5rem 1rem 1.5rem',
+        display: 'flex',
+        gap: '0.5rem',
+        flexShrink: 0
+      }}>
         {["ALL", "Opened", "In Progress", "Closed"].map((s) => (
           <button
             key={s}
-            className={filter === s ? "active" : ""}
             onClick={() => setFilter(s)}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: filter === s ? '#4F46E5' : 'white',
+              color: filter === s ? 'white' : '#374151',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
           >
             {s}
           </button>
@@ -147,102 +352,226 @@ export default function Dashboard() {
 
       {/* ERROR MESSAGE */}
       {error && (
-        <div
-          style={{
-            margin: "0 1.5rem 1rem 1.5rem",
-            padding: "1rem",
-            backgroundColor: "#f8d7da",
-            color: "#721c24",
-            borderRadius: "4px",
-          }}
-        >
+        <div style={{
+          margin: '0 1.5rem 1rem 1.5rem',
+          padding: '0.75rem 1rem',
+          backgroundColor: '#FEE2E2',
+          color: '#DC2626',
+          borderRadius: '6px',
+          fontSize: '0.875rem',
+          flexShrink: 0
+        }}>
           {error}
         </div>
       )}
 
-      {/* TICKET TABLE */}
-      <div className="ticket-card">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Requisition No</th>
-              <th>Branch Id</th>
-              <th>Vehicle No</th>
-              <th>Customer Name</th>
-              <th>Customer Mobile</th>
-              <th>Device Type</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {loading ? (
-              [...Array(5)].map((_, index) => (
-                <tr key={index}>
-                  {[...Array(9)].map((_, colIndex) => (
-                    <td key={colIndex}>
-                      <div className="skeleton-line" />
-                    </td>
-                  ))}
-                </tr>
-              ))
-            ) : filteredRequisitions.length === 0 ? (
+      {/* TABLE CONTAINER - FIXED */}
+      <div style={{
+        flex: 1,
+        margin: '0 1.5rem 1.5rem 1.5rem',
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        border: '1px solid #e5e7eb',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 0 // Important for proper flex behavior
+      }}>
+        <div style={{
+          overflowX: 'auto',
+          overflowY: 'auto',
+          flex: 1,
+          position: 'relative',
+          WebkitOverflowScrolling: 'touch' // Smooth scrolling on iOS
+        }}>
+          <table style={{
+            width: 'max-content',
+            minWidth: '100%',
+            borderCollapse: 'collapse',
+            fontSize: '0.875rem'
+          }}>
+            <thead style={{
+              position: 'sticky',
+              top: 0,
+              backgroundColor: '#F9FAFB',
+              zIndex: 10
+            }}>
               <tr>
-                <td colSpan="9" style={{ textAlign: "center", padding: "2rem" }}>
-                  No tickets found
-                </td>
+                <th style={{ ...headerStyle, width: '70px' }}>ID</th>
+                <th style={{ ...headerStyle, width: '140px' }}>Requisition No</th>
+                <th style={{ ...headerStyle, width: '110px' }}>Date</th>
+                <th style={{ ...headerStyle, width: '90px' }}>Branch ID</th>
+                <th style={{ ...headerStyle, width: '150px' }}>Branch Name</th>
+                <th style={{ ...headerStyle, width: '120px' }}>Vehicle No</th>
+                <th style={{ ...headerStyle, width: '150px' }}>Customer</th>
+                <th style={{ ...headerStyle, width: '90px' }}>Pincode</th>
+                <th style={{ ...headerStyle, width: '120px' }}>State</th>
+                <th style={{ ...headerStyle, width: '120px' }}>Device</th>
+                <th style={{ ...headerStyle, width: '110px' }}>Status</th>
+                <th style={{ ...headerStyle, width: '80px' }}>Action</th>
               </tr>
-            ) : (
-              filteredRequisitions.map((req) => (
-                <tr key={req.id}>
-                  <td>{req.id}</td>
-                  <td>
-                    <strong>{req.requisitionNo}</strong>
-                  </td>
-                  <td>{req.branchId || "N/A"}</td>
-                  <td>{req.vehicleNo}</td>
-                  <td>{req.customerName}</td>
-                  <td>{req.customerMobile}</td>
-                  <td>{req.deviceType}</td>
-                  <td>
-                    <span className={`status-pill ${getStatusClass(req.status)}`}>
-                      {getDisplayStatus(req.status)}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      className="icon-btn"
-                      onClick={() => handleViewDetails(req)}
-                      title="View Details"
-                    >
-                      <Eye size={16} />
-                    </button>
+            </thead>
+
+            <tbody>
+              {loading ? (
+                [...Array(10)].map((_, index) => (
+                  <tr key={index}>
+                    {[...Array(12)].map((_, colIndex) => (
+                      <td key={colIndex} style={cellStyle}>
+                        <div style={{
+                          height: '16px',
+                          backgroundColor: '#E5E7EB',
+                          borderRadius: '4px',
+                          animation: 'pulse 1.5s ease-in-out infinite'
+                        }} />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : filteredRequisitions.length === 0 ? (
+                <tr>
+                  <td colSpan="12" style={{ ...cellStyle, textAlign: 'center', padding: '3rem' }}>
+                    No tickets found
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                filteredRequisitions.map((req) => (
+                  <tr key={req.id} style={{
+                    transition: 'background-color 0.15s',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <td style={cellStyle}>{req.id}</td>
+                    <td style={cellStyle}>
+                      <strong style={{ fontWeight: '600' }}>{req.requisitionNo}</strong>
+                    </td>
+                    <td style={cellStyle}>{formatTableDate(req.createdAt)}</td>
+                    <td style={cellStyle}>{req.branchId || "N/A"}</td>
+                    <td style={cellStyle}>{getBranchName(req.branchId)}</td>
+                    <td style={cellStyle}>{req.vehicleNo}</td>
+                    <td style={cellStyle}>{req.customerName}</td>
+                    <td style={cellStyle}>{req.pincode}</td>
+                    <td style={cellStyle}>{getState(req.branchId)}</td>
+                    <td style={cellStyle}>{req.deviceType}</td>
+                    <td style={cellStyle}>
+                      <span style={{
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '12px',
+                        fontSize: '0.75rem',
+                        fontWeight: '500',
+                        whiteSpace: 'nowrap',
+                        display: 'inline-block',
+                        ...getStatusStyle(req.status)
+                      }}>
+                        {getDisplayStatus(req.status)}
+                      </span>
+                    </td>
+                    <td style={cellStyle}>
+                      <button
+                        onClick={() => handleViewDetails(req)}
+                        style={{
+                          padding: '0.375rem',
+                          backgroundColor: '#F3F4F6',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'background-color 0.15s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E5E7EB'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'}
+                      >
+                        <Eye size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* VIEW MODAL */}
       {showModal && selectedRequisition && (
-        <TicketModal requisition={selectedRequisition} onClose={handleCloseModal} />
+        <TicketModal
+          requisition={selectedRequisition}
+          branchData={branchData[selectedRequisition.branchId]}
+          onClose={handleCloseModal}
+        />
       )}
     </div>
   );
 }
+
+// Styles
+const headerStyle = {
+  padding: '0.75rem 1rem',
+  textAlign: 'left',
+  fontWeight: '600',
+  fontSize: '0.75rem',
+  textTransform: 'uppercase',
+  color: '#6B7280',
+  borderBottom: '1px solid #E5E7EB',
+  whiteSpace: 'nowrap',
+  position: 'sticky',
+  backgroundColor: '#F9FAFB'
+};
+
+const cellStyle = {
+  padding: '0.75rem 1rem',
+  borderBottom: '1px solid #F3F4F6',
+  whiteSpace: 'nowrap',
+  color: '#374151'
+};
+
+const getStatusStyle = (status) => {
+  const styles = {
+    NEW: {
+      backgroundColor: '#DBEAFE',
+      color: '#1E40AF'
+    },
+    IN_PROGRESS: {
+      backgroundColor: '#FEF3C7',
+      color: '#92400E'
+    },
+    COMPLETED: {
+      backgroundColor: '#D1FAE5',
+      color: '#065F46'
+    }
+  };
+  return styles[status] || styles.NEW;
+};
 
 /* =====================
    SUMMARY CARD
    ===================== */
 function SummaryCard({ title, value, color }) {
   return (
-    <div className={`summary-card ${color}`}>
-      <h4>{title}</h4>
-      <p>{value} Tickets</p>
+    <div style={{
+      backgroundColor: 'white',
+      padding: '1rem',
+      borderRadius: '8px',
+      border: '1px solid #E5E7EB',
+      borderLeft: `4px solid ${color}`
+    }}>
+      <h4 style={{
+        margin: 0,
+        fontSize: '0.875rem',
+        fontWeight: '500',
+        color: '#6B7280',
+        marginBottom: '0.5rem'
+      }}>{title}</h4>
+      <p style={{
+        margin: 0,
+        fontSize: '1.5rem',
+        fontWeight: '700',
+        color: '#111827'
+      }}>{value}</p>
     </div>
   );
 }
@@ -250,13 +579,13 @@ function SummaryCard({ title, value, color }) {
 /* =====================
    TICKET MODAL
    ===================== */
-function TicketModal({ requisition, onClose }) {
+function TicketModal({ requisition, branchData, onClose }) {
   const formatDate = (isoDateString) => {
     if (!isoDateString) return "N/A";
     try {
       const date = new Date(isoDateString);
       if (isNaN(date.getTime())) return "N/A";
-      
+
       return date.toLocaleDateString('en-IN', {
         year: 'numeric',
         month: 'short',
@@ -278,197 +607,150 @@ function TicketModal({ requisition, onClose }) {
     return statusMap[status] || status;
   };
 
-  const getStatusClass = (status) => {
-    const classMap = {
-      NEW: "opened",
-      IN_PROGRESS: "in-progress",
-      COMPLETED: "closed",
-    };
-    return classMap[status] || "";
-  };
-
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div onClick={onClose} style={{
+      position: 'fixed',
+      inset: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 50,
+      padding: '1rem'
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        maxWidth: '800px',
+        width: '100%',
+        maxHeight: '90vh',
+        overflow: 'auto',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+      }}>
         {/* HEADER */}
-        <div className="modal-header">
+        <div style={{
+          padding: '1.5rem',
+          borderBottom: '1px solid #E5E7EB',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          position: 'sticky',
+          top: 0,
+          backgroundColor: 'white',
+          zIndex: 10
+        }}>
           <div>
-            <h2 style={{ margin: 0 }}>Ticket Details</h2>
-            <p style={{ margin: "0.5rem 0 0 0", color: "#666", fontSize: "0.9rem" }}>
+            <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>Ticket Details</h2>
+            <p style={{ margin: '0.25rem 0 0 0', color: '#666', fontSize: '0.875rem' }}>
               {requisition.requisitionNo}
             </p>
           </div>
-          <button className="modal-close" onClick={onClose}>
-            <X size={24} />
+          <button onClick={onClose} style={{
+            padding: '0.5rem',
+            backgroundColor: '#F3F4F6',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <X size={20} />
           </button>
         </div>
 
         {/* CONTENT */}
-        <div className="modal-body">
+        <div style={{ padding: '1.5rem' }}>
           {/* STATUS BADGE */}
-          <div style={{ marginBottom: "1.5rem" }}>
-            <span
-              className={`status-pill ${getStatusClass(requisition.status)}`}
-              style={{ padding: "0.5rem 1rem", fontSize: "0.9rem" }}
-            >
+          <div style={{ marginBottom: '1.5rem' }}>
+            <span style={{
+              padding: '0.5rem 1rem',
+              borderRadius: '16px',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              ...getStatusStyle(requisition.status)
+            }}>
               {getDisplayStatus(requisition.status)}
             </span>
           </div>
 
           {/* BASIC INFO */}
-          <div className="modal-section">
-            <h4>Basic Information</h4>
-            <div className="info-grid">
-              <div>
-                <label>ID</label>
-                <p>{requisition.id}</p>
-              </div>
-              <div>
-                <label>Requisition Number</label>
-                <p><strong>{requisition.requisitionNo}</strong></p>
-              </div>
-              <div>
-                <label>Branch ID</label>
-                <p>{requisition.branchId || "N/A"}</p>
-              </div>
-              <div>
-                <label>Priority</label>
-                <p>{requisition.priority || "NORMAL"}</p>
-              </div>
-            </div>
-          </div>
+          <Section title="Basic Information">
+            <InfoGrid>
+              <InfoItem label="ID" value={requisition.id} />
+              <InfoItem label="Requisition Number" value={requisition.requisitionNo} bold />
+              <InfoItem label="Branch ID" value={requisition.branchId || "N/A"} />
+              <InfoItem label="Branch Name" value={branchData?.branchName || "N/A"} />
+              <InfoItem label="Priority" value={requisition.priority || "NORMAL"} />
+            </InfoGrid>
+          </Section>
 
           {/* VEHICLE & CUSTOMER INFO */}
-          <div className="modal-section">
-            <h4>Vehicle & Customer Information</h4>
-            <div className="info-grid">
-              <div>
-                <label>Vehicle Number</label>
-                <p>{requisition.vehicleNo}</p>
-              </div>
-              <div>
-                <label>Customer Name</label>
-                <p>{requisition.customerName}</p>
-              </div>
-              <div>
-                <label>Customer Mobile</label>
-                <p>{requisition.customerMobile}</p>
-              </div>
-              <div>
-                <label>Aadhaar Number</label>
-                <p>{requisition.customerAadhaarNo || "N/A"}</p>
-              </div>
-            </div>
-          </div>
+          <Section title="Vehicle & Customer Information">
+            <InfoGrid>
+              <InfoItem label="Vehicle Number" value={requisition.vehicleNo} />
+              <InfoItem label="Customer Name" value={requisition.customerName} />
+              <InfoItem label="Customer Mobile" value={requisition.customerMobile} />
+              <InfoItem label="Aadhaar Number" value={requisition.customerAadhaarNo || "N/A"} />
+            </InfoGrid>
+          </Section>
 
           {/* INSTALLATION ADDRESS */}
-          <div className="modal-section">
-            <h4>Installation Address</h4>
-            <p style={{ marginBottom: "1rem" }}>
+          <Section title="Installation Address">
+            <p style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>
               <strong>Address:</strong> {requisition.installationAddress}
             </p>
-            <div className="info-grid">
-              <div>
-                <label>State</label>
-                <p>{requisition.state}</p>
-              </div>
-              <div>
-                <label>District</label>
-                <p>{requisition.district}</p>
-              </div>
-              <div>
-                <label>Pincode</label>
-                <p>{requisition.pincode}</p>
-              </div>
-            </div>
-            {requisition.latitude && requisition.longitude && (
-              <p style={{ marginTop: "0.5rem" }}>
-                <strong>Coordinates:</strong> {requisition.latitude}, {requisition.longitude}
-              </p>
-            )}
-          </div>
+            <InfoGrid>
+              <InfoItem label="State" value={requisition.state} />
+              <InfoItem label="District" value={requisition.district} />
+              <InfoItem label="Pincode" value={requisition.pincode} />
+            </InfoGrid>
+          </Section>
 
           {/* DEVICE INFO */}
-          <div className="modal-section">
-            <h4>Device Information</h4>
-            <div className="info-grid">
-              <div>
-                <label>Device Type</label>
-                <p>{requisition.deviceType}</p>
-              </div>
-              <div>
-                <label>Quantity</label>
-                <p>{requisition.quantity || "N/A"}</p>
-              </div>
-            </div>
-          </div>
+          <Section title="Device Information">
+            <InfoGrid>
+              <InfoItem label="Device Type" value={requisition.deviceType} />
+              <InfoItem label="Quantity" value={requisition.quantity || "N/A"} />
+            </InfoGrid>
+          </Section>
 
           {/* TIMELINE */}
-          <div className="modal-section">
-            <h4>Timeline</h4>
-            <div className="info-grid">
-              <div>
-                <label>Requested At</label>
-                <p>{formatDate(requisition.requestedAt)}</p>
-              </div>
-              <div>
-                <label>Preferred Installation Date</label>
-                <p>{formatDate(requisition.preferredInstallationDate)}</p>
-              </div>
-              <div>
-                <label>TAT Hours</label>
-                <p>{requisition.tatHours || "N/A"} hours</p>
-              </div>
-              <div>
-                <label>Installation Finish Time</label>
-                <p>{formatDate(requisition.installationFinishTimeAssigned)}</p>
-              </div>
-            </div>
-            {requisition.completedAt && (
-              <div style={{ marginTop: "1rem" }}>
-                <label>Completed At</label>
-                <p>{formatDate(requisition.completedAt)}</p>
-              </div>
-            )}
-          </div>
-
-          {/* AGGREGATOR INFO */}
-          {requisition.assignedAggregatorId && (
-            <div className="modal-section">
-              <h4>Assigned Aggregator</h4>
-              <p>Aggregator ID: {requisition.assignedAggregatorId}</p>
-            </div>
-          )}
-
-          {/* REMARKS */}
-          {requisition.remarks && (
-            <div className="modal-section">
-              <h4>Remarks</h4>
-              <p style={{ padding: "0.75rem", backgroundColor: "#f9f9f9", borderRadius: "4px" }}>
-                {requisition.remarks}
-              </p>
-            </div>
-          )}
+          <Section title="Timeline">
+            <InfoGrid>
+              <InfoItem label="Requested At" value={formatDate(requisition.requestedAt)} />
+              <InfoItem label="Preferred Date" value={formatDate(requisition.preferredInstallationDate)} />
+              <InfoItem label="TAT Hours" value={`${requisition.tatHours || "N/A"} hours`} />
+              <InfoItem label="Finish Time" value={formatDate(requisition.installationFinishTimeAssigned)} />
+            </InfoGrid>
+          </Section>
 
           {/* TIMESTAMPS */}
-          <div className="modal-section">
-            <h4>Record Information</h4>
-            <div className="info-grid">
-              <div>
-                <label>Created At</label>
-                <p>{formatDate(requisition.createdAt)}</p>
-              </div>
-              <div>
-                <label>Updated At</label>
-                <p>{formatDate(requisition.updatedAt)}</p>
-              </div>
-            </div>
-          </div>
+          <Section title="Record Information">
+            <InfoGrid>
+              <InfoItem label="Created At" value={formatDate(requisition.createdAt)} />
+              <InfoItem label="Updated At" value={formatDate(requisition.updatedAt)} />
+            </InfoGrid>
+          </Section>
         </div>
 
         {/* FOOTER */}
-        <div className="modal-footer">
-          <button className="secondary" onClick={onClose}>
+        <div style={{
+          padding: '1rem 1.5rem',
+          borderTop: '1px solid #E5E7EB',
+          display: 'flex',
+          justifyContent: 'flex-end'
+        }}>
+          <button onClick={onClose} style={{
+            padding: '0.625rem 1.5rem',
+            backgroundColor: '#F3F4F6',
+            color: '#374151',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '0.875rem',
+            fontWeight: '500',
+            cursor: 'pointer'
+          }}>
             Close
           </button>
         </div>
@@ -477,283 +759,45 @@ function TicketModal({ requisition, onClose }) {
   );
 }
 
+// Helper Components for Modal
+function Section({ title, children }) {
+  return (
+    <div style={{ marginBottom: '1.5rem' }}>
+      <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1rem', fontWeight: '600' }}>{title}</h4>
+      {children}
+    </div>
+  );
+}
 
+function InfoGrid({ children }) {
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+      gap: '1rem'
+    }}>
+      {children}
+    </div>
+  );
+}
 
-// import { useState, useMemo, useEffect } from "react";
-// import { getInstallationRequisitions } from "../api/installationRequisitionApi";
-// import { Eye, TrendingUp, Clock, CheckCircle, AlertCircle } from "lucide-react";
-// import "./Dashboard.css";
-
-// export default function Dashboard() {
-//   const [filter, setFilter] = useState("ALL");
-//   const [requisitions, setRequisitions] = useState([]);
-//   const [loading, setLoading] = useState(true);
-//   const [error, setError] = useState(null);
-
-//   useEffect(() => {
-//     fetchRequisitions();
-//   }, []);
-
-//   const fetchRequisitions = async () => {
-//     setLoading(true);
-//     setError(null);
-
-//     const result = await getInstallationRequisitions({ limit: 1000 });
-
-//     if (result.success) {
-//       setRequisitions(result.data);
-//     } else {
-//       setError(result.error);
-//       setRequisitions([]);
-//     }
-
-//     setLoading(false);
-//   };
-
-//   const getDisplayStatus = (status) => {
-//     const statusMap = {
-//       NEW: "Opened",
-//       IN_PROGRESS: "In Progress",
-//       COMPLETED: "Closed",
-//     };
-//     return statusMap[status] || status;
-//   };
-
-//   const allowedStatuses = ["NEW", "IN_PROGRESS", "COMPLETED"];
-
-//   const filteredRequisitions = useMemo(() => {
-//     let filtered = requisitions.filter((r) => allowedStatuses.includes(r.status));
-
-//     if (filter === "ALL") return filtered;
-
-//     const filterMap = {
-//       Opened: "NEW",
-//       "In Progress": "IN_PROGRESS",
-//       Closed: "COMPLETED",
-//     };
-
-//     const actualStatus = filterMap[filter];
-//     return filtered.filter((r) => r.status === actualStatus);
-//   }, [requisitions, filter]);
-
-//   const counts = useMemo(() => {
-//     const allowedRequisitions = requisitions.filter((r) =>
-//       allowedStatuses.includes(r.status)
-//     );
-
-//     return {
-//       total: allowedRequisitions.length,
-//       opened: requisitions.filter((r) => r.status === "NEW").length,
-//       inProgress: requisitions.filter((r) => r.status === "IN_PROGRESS").length,
-//       closed: requisitions.filter((r) => r.status === "COMPLETED").length,
-//     };
-//   }, [requisitions]);
-
-//   const getStatusClass = (status) => {
-//     const classMap = {
-//       NEW: "status-opened",
-//       IN_PROGRESS: "status-progress",
-//       COMPLETED: "status-closed",
-//     };
-//     return classMap[status] || "";
-//   };
-
-//   const formatDate = (isoDateString) => {
-//     if (!isoDateString) return "N/A";
-//     try {
-//       const date = new Date(isoDateString);
-//       if (isNaN(date.getTime())) return "N/A";
-      
-//       return date.toLocaleDateString('en-IN', {
-//         year: 'numeric',
-//         month: 'short',
-//         day: 'numeric'
-//       });
-//     } catch (error) {
-//       return "N/A";
-//     }
-//   };
-
-//   return (
-//     <div className="modern-dashboard">
-//       {/* HEADER */}
-//       <div className="dashboard-header-modern">
-//         <div className="header-content">
-//           <div>
-//             <h1>Installation Tickets Dashboard</h1>
-//             <p className="subtitle">Monitor and manage all installation requisitions</p>
-//           </div>
-//           <div className="header-actions">
-//             <button className="refresh-btn" onClick={fetchRequisitions}>
-//               <TrendingUp size={18} />
-//               Refresh Data
-//             </button>
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* SUMMARY CARDS */}
-//       <div className="stats-grid">
-//         <StatCard 
-//           title="Total Tickets" 
-//           value={counts.total} 
-//           icon={<AlertCircle />}
-//           color="blue"
-//           isActive={filter === "ALL"}
-//           onClick={() => setFilter("ALL")}
-//         />
-//         <StatCard 
-//           title="Opened" 
-//           value={counts.opened} 
-//           icon={<Clock />}
-//           color="green"
-//           isActive={filter === "Opened"}
-//           onClick={() => setFilter("Opened")}
-//         />
-//         <StatCard 
-//           title="In Progress" 
-//           value={counts.inProgress} 
-//           icon={<TrendingUp />}
-//           color="orange"
-//           isActive={filter === "In Progress"}
-//           onClick={() => setFilter("In Progress")}
-//         />
-//         <StatCard 
-//           title="Closed" 
-//           value={counts.closed} 
-//           icon={<CheckCircle />}
-//           color="teal"
-//           isActive={filter === "Closed"}
-//           onClick={() => setFilter("Closed")}
-//         />
-//       </div>
-
-//       {/* FILTERS */}
-//       <div className="filter-section">
-//         <div className="filter-label">Filter by Status:</div>
-//         <div className="filter-buttons">
-//           {["ALL", "Opened", "In Progress", "Closed"].map((s) => (
-//             <button
-//               key={s}
-//               className={`filter-btn ${filter === s ? "active" : ""}`}
-//               onClick={() => setFilter(s)}
-//             >
-//               {s}
-//             </button>
-//           ))}
-//         </div>
-//       </div>
-
-//       {/* ERROR MESSAGE */}
-//       {error && (
-//         <div className="error-banner">
-//           <AlertCircle size={20} />
-//           <span>{error}</span>
-//         </div>
-//       )}
-
-//       {/* TICKET TABLE */}
-//       <div className="table-container-modern">
-//         <div className="table-header-bar">
-//           <h3>Requisition List</h3>
-//           <span className="table-count">{filteredRequisitions.length} Records</span>
-//         </div>
-
-//         <div className="table-wrapper">
-//           <table className="modern-table">
-//             <thead>
-//               <tr>
-//                 <th>Requisition No</th>
-//                 <th>Branch ID</th>
-//                 <th>Vehicle No</th>
-//                 <th>Customer Name</th>
-//                 <th>Mobile</th>
-//                 <th>Device Type</th>
-//                 <th>Requested Date</th>
-//                 <th>Priority</th>
-//                 <th>Status</th>
-//                 <th>Action</th>
-//               </tr>
-//             </thead>
-
-//             <tbody>
-//               {loading ? (
-//                 [...Array(5)].map((_, index) => (
-//                   <tr key={index}>
-//                     {[...Array(10)].map((_, colIndex) => (
-//                       <td key={colIndex}>
-//                         <div className="skeleton-loader" />
-//                       </td>
-//                     ))}
-//                   </tr>
-//                 ))
-//               ) : filteredRequisitions.length === 0 ? (
-//                 <tr>
-//                   <td colSpan="10" className="empty-state">
-//                     <AlertCircle size={48} />
-//                     <p>No tickets found</p>
-//                   </td>
-//                 </tr>
-//               ) : (
-//                 filteredRequisitions.map((req) => (
-//                   <tr key={req.id}>
-//                     <td>
-//                       <div className="requisition-id">
-//                         <strong>{req.requisitionNo}</strong>
-//                       </div>
-//                     </td>
-//                     <td>{req.branchId || "N/A"}</td>
-//                     <td>
-//                       <span className="vehicle-badge">{req.vehicleNo}</span>
-//                     </td>
-//                     <td>{req.customerName}</td>
-//                     <td>{req.customerMobile}</td>
-//                     <td>
-//                       <span className="device-type">{req.deviceType}</span>
-//                     </td>
-//                     <td>
-//                       <span className="date-text">{formatDate(req.requestedAt)}</span>
-//                     </td>
-//                     <td>
-//                       <span className={`priority-badge priority-${req.priority?.toLowerCase()}`}>
-//                         {req.priority || "NORMAL"}
-//                       </span>
-//                     </td>
-//                     <td>
-//                       <span className={`status-badge ${getStatusClass(req.status)}`}>
-//                         {getDisplayStatus(req.status)}
-//                       </span>
-//                     </td>
-//                     <td>
-//                       <button className="action-btn" title="View Details">
-//                         <Eye size={16} />
-//                       </button>
-//                     </td>
-//                   </tr>
-//                 ))
-//               )}
-//             </tbody>
-//           </table>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-// function StatCard({ title, value, icon, color, isActive, onClick }) {
-//   return (
-//     <div 
-//       className={`stat-card stat-${color} ${isActive ? 'active' : ''}`}
-//       onClick={onClick}
-//     >
-//       <div className="stat-icon">{icon}</div>
-//       <div className="stat-content">
-//         <h3>{title}</h3>
-//         <p className="stat-value">{value}</p>
-//       </div>
-//       <div className="stat-trend">
-//         <TrendingUp size={16} />
-//       </div>
-//     </div>
-//   );
-// }
+function InfoItem({ label, value, bold }) {
+  return (
+    <div>
+      <label style={{
+        display: 'block',
+        fontSize: '0.75rem',
+        fontWeight: '500',
+        color: '#6B7280',
+        marginBottom: '0.25rem',
+        textTransform: 'uppercase'
+      }}>{label}</label>
+      <p style={{
+        margin: 0,
+        fontSize: '0.875rem',
+        color: '#111827',
+        fontWeight: bold ? '600' : '400'
+      }}>{value}</p>
+    </div>
+  );
+}
