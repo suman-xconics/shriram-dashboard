@@ -51,6 +51,9 @@ import DeviceMovementDetail from "./pages/DeviceMovementDetail";
 import TrackerPage from "./pages/TrackerPage";
 import TrackerMap from "./pages/TrackerMap";
 
+import VehicleTracking from "./pages/VehicleTracking";
+
+
 
 import "./App.css";
 
@@ -148,6 +151,9 @@ export default function App() {
           {/* TRACKER */}
           <Route path="/tracker" element={<TrackerPage />} />
           <Route path="/tracker/map/:vehicleNo" element={<TrackerMap />} />
+          {/* VEHICLE TRACKING */}
+          <Route path="/vehicle-tracking" element={<VehicleTracking />} />
+
 
         </Routes>
 
