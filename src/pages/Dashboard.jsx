@@ -192,7 +192,7 @@ export default function Dashboard() {
   /* =====================
      FILTER ONLY SPECIFIC STATUSES
      ===================== */
-  const allowedStatuses = ["NEW", "IN_PROGRESS", "COMPLETED"];
+  const allowedStatuses = ["PENDING", "IN_PROGRESS", "COMPLETED"];
 
   const filteredRequisitions = useMemo(() => {
     let filtered = requisitions.filter((r) => allowedStatuses.includes(r.status));
@@ -200,7 +200,7 @@ export default function Dashboard() {
     if (filter === "ALL") return filtered;
 
     const filterMap = {
-      Opened: "NEW",
+      Opened: "PENDING",
       "In Progress": "IN_PROGRESS",
       Closed: "COMPLETED",
     };
@@ -219,7 +219,7 @@ export default function Dashboard() {
 
     return {
       total: allowedRequisitions.length,
-      opened: requisitions.filter((r) => r.status === "NEW").length,
+      opened: requisitions.filter((r) => r.status === "PENDING").length,
       inProgress: requisitions.filter((r) => r.status === "IN_PROGRESS").length,
       closed: requisitions.filter((r) => r.status === "COMPLETED").length,
     };
@@ -400,7 +400,7 @@ export default function Dashboard() {
                 <th style={{ ...headerStyle, width: '70px' }}>ID</th>
                 <th style={{ ...headerStyle, width: '140px' }}>Requisition No</th>
                 <th style={{ ...headerStyle, width: '110px' }}>Date</th>
-                <th style={{ ...headerStyle, width: '90px' }}>Branch ID</th>
+                <th style={{ ...headerStyle, width: '90px' }}>Branch Code</th>
                 <th style={{ ...headerStyle, width: '150px' }}>Branch Name</th>
                 <th style={{ ...headerStyle, width: '120px' }}>Vehicle No</th>
                 <th style={{ ...headerStyle, width: '150px' }}>Customer</th>
@@ -448,7 +448,7 @@ export default function Dashboard() {
                       <strong style={{ fontWeight: '600' }}>{req.requisitionNo}</strong>
                     </td>
                     <td style={cellStyle}>{formatTableDate(req.createdAt)}</td>
-                    <td style={cellStyle}>{req.branchId || "N/A"}</td>
+                    <td style={cellStyle}>{req.branch.branchCode || "N/A"}</td>
                     <td style={cellStyle}>{getBranchName(req.branchId)}</td>
                     <td style={cellStyle}>{req.vehicleNo}</td>
                     <td style={cellStyle}>{req.customerName}</td>
