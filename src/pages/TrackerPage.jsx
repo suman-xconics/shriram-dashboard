@@ -3,27 +3,31 @@ import { useNavigate } from "react-router-dom";
 import { MapPin, X } from "lucide-react";
 import "./TrackerPage.css";
 
-// Dummy vehicle data with locations
+// Dummy vehicle data with West Bengal locations
 const generateDummyVehicles = () => {
   const locations = [
-    { lat: 28.6139, lng: 77.2090, city: "New Delhi" },
-    { lat: 19.0760, lng: 72.8777, city: "Mumbai" },
-    { lat: 13.0827, lng: 80.2707, city: "Chennai" },
     { lat: 22.5726, lng: 88.3639, city: "Kolkata" },
-    { lat: 12.9716, lng: 77.5946, city: "Bangalore" },
-    { lat: 17.3850, lng: 78.4867, city: "Hyderabad" },
-    { lat: 23.0225, lng: 72.5714, city: "Ahmedabad" },
-    { lat: 18.5204, lng: 73.8567, city: "Pune" },
-    { lat: 26.9124, lng: 75.7873, city: "Jaipur" },
-    { lat: 21.1702, lng: 72.8311, city: "Surat" },
+    { lat: 22.5698, lng: 88.4331, city: "Salt Lake, Kolkata" },
+    { lat: 22.5343, lng: 88.3301, city: "Alipore" },
+    { lat: 22.7210, lng: 88.4853, city: "Barasat" },
+    { lat: 26.7271, lng: 88.3953, city: "Siliguri" },
+    { lat: 23.2419, lng: 87.8615, city: "Burdwan" },
+    { lat: 22.5820, lng: 88.3426, city: "Howrah" },
+    { lat: 23.4058, lng: 88.4969, city: "Krishnanagar" },
+    { lat: 25.0097, lng: 88.1433, city: "Malda" },
+    { lat: 23.6839, lng: 86.9524, city: "Asansol" },
+  ];
+
+  const wbRTOCodes = [
+    "WB-01", "WB-20", "WB-26", "WB-74", "WB-42", 
+    "WB-12", "WB-52", "WB-66", "WB-38", "WB-34"
   ];
 
   return Array.from({ length: 20 }, (_, i) => ({
     id: i + 1,
-    vehicleNo: `DL-${10 + i}-AB-${1000 + i}`,
+    vehicleNo: `${wbRTOCodes[i % wbRTOCodes.length]}-${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(65 + ((i + 1) % 26))}-${1000 + i}`,
     status: i % 3 === 0 ? "Moving" : i % 2 === 0 ? "Stopped" : "Idle",
     location: locations[i % locations.length],
-    driver: `Driver ${i + 1}`,
     lastUpdate: new Date(Date.now() - Math.random() * 3600000).toLocaleString('en-IN'),
   }));
 };
@@ -76,7 +80,7 @@ export default function TrackerPage() {
     <div className="tracker-page">
       {/* PAGE HEADER */}
       <div className="card page-header">
-        <h2>Vehicle List</h2>
+        <h2>Vehicle List - West Bengal</h2>
         <p style={{ margin: "0.5rem 0 0 0", color: "#666", fontSize: "0.9rem" }}>
           All vehicles list
         </p>
@@ -108,7 +112,6 @@ export default function TrackerPage() {
               <tr>
                 <th>#</th>
                 <th>Vehicle Number</th>
-                <th>Driver</th>
                 <th>Status</th>
                 <th>Location</th>
                 <th>Last Update</th>
@@ -119,7 +122,7 @@ export default function TrackerPage() {
             <tbody>
               {filteredVehicles.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: "center", padding: "2rem" }}>
+                  <td colSpan="6" style={{ textAlign: "center", padding: "2rem" }}>
                     No vehicles found
                   </td>
                 </tr>
@@ -134,7 +137,6 @@ export default function TrackerPage() {
                           {vehicle.vehicleNo}
                         </span>
                       </td>
-                      <td>{vehicle.driver}</td>
                       <td>
                         <span
                           style={{
@@ -290,12 +292,6 @@ function MapModal({ vehicle, onClose }) {
               borderBottom: "1px solid #e0e0e0",
             }}
           >
-            <div>
-              <p style={{ margin: 0, fontSize: "0.85rem", color: "#666" }}>Driver</p>
-              <p style={{ margin: "0.25rem 0 0 0", fontWeight: "500" }}>
-                {vehicle.driver}
-              </p>
-            </div>
             <div>
               <p style={{ margin: 0, fontSize: "0.85rem", color: "#666" }}>
                 Coordinates

@@ -5,29 +5,29 @@ import "./VehicleTracking.css";
 // Generate realistic tracking logs
 const generateTrackingLogs = () => {
   const vehicles = [
-    "DL-01-AB-1234",
-    "DL-02-CD-5678",
-    "MH-12-EF-9012",
-    "KA-03-GH-3456",
-    "TN-09-IJ-7890",
-    "WB-10-KL-2345",
-    "RJ-14-MN-6789",
-    "UP-16-OP-0123",
-    "GJ-01-QR-4567",
-    "HR-26-ST-8901",
+    "WB-01-AB-1234", // Kolkata
+    "WB-20-CD-5678", // Alipore
+    "WB-26-EF-9012", // Barasat
+    "WB-74-GH-3456", // Siliguri
+    "WB-42-IJ-7890", // Burdwan
+    "WB-12-KL-2345", // Howrah
+    "WB-52-MN-6789", // Nadia
+    "WB-66-OP-0123", // Malda
+    "WB-38-QR-4567", // Asansol
+    "WB-34-ST-8901", // Midnapur
   ];
 
   const locations = [
-    { name: "Connaught Place, New Delhi", lat: 28.6315, lng: 77.2167 },
-    { name: "Andheri West, Mumbai", lat: 19.1136, lng: 72.8697 },
-    { name: "MG Road, Bangalore", lat: 12.9716, lng: 77.5946 },
-    { name: "T Nagar, Chennai", lat: 13.0418, lng: 80.2341 },
+    { name: "Park Street, Kolkata", lat: 22.5532, lng: 88.3515 },
     { name: "Salt Lake, Kolkata", lat: 22.5698, lng: 88.4331 },
-    { name: "Banjara Hills, Hyderabad", lat: 17.4239, lng: 78.4738 },
-    { name: "C-Scheme, Jaipur", lat: 26.9124, lng: 75.7873 },
-    { name: "Gomti Nagar, Lucknow", lat: 26.8467, lng: 80.9462 },
-    { name: "Satellite, Ahmedabad", lat: 23.0225, lng: 72.5714 },
-    { name: "Sector 17, Chandigarh", lat: 30.7333, lng: 76.7794 },
+    { name: "Alipore, South 24 Parganas", lat: 22.5343, lng: 88.3301 },
+    { name: "Barasat, North 24 Parganas", lat: 22.7210, lng: 88.4853 },
+    { name: "Siliguri, Darjeeling", lat: 26.7271, lng: 88.3953 },
+    { name: "Burdwan City Center", lat: 23.2419, lng: 87.8615 },
+    { name: "Howrah Station Area", lat: 22.5820, lng: 88.3426 },
+    { name: "Krishnanagar, Nadia", lat: 23.4058, lng: 88.4969 },
+    { name: "Malda Town", lat: 25.0097, lng: 88.1433 },
+    { name: "Asansol, Paschim Bardhaman", lat: 23.6839, lng: 86.9524 },
   ];
 
   const statuses = ["Moving", "Stopped", "Idle", "Parked"];
@@ -53,7 +53,6 @@ const generateTrackingLogs = () => {
       ignition: speeds[i % speeds.length] > 0 ? "ON" : "OFF",
       batteryVoltage: (12 + Math.random() * 2).toFixed(1),
       timestamp: new Date(now - i * 5 * 60 * 1000),
-      driver: `Driver ${(vehicleIndex % 10) + 1}`,
     });
   }
 
@@ -141,7 +140,7 @@ export default function VehicleTracking() {
       {/* PAGE HEADER */}
       <div className="card page-header">
         <div>
-          <h2>Vehicle Tracking Logs</h2>
+          <h2>Vehicle Tracking Logs - West Bengal</h2>
           <p style={{ margin: "0.5rem 0 0 0", color: "#666", fontSize: "0.9rem" }}>
             Real-time GPS tracking history and vehicle telemetry
           </p>
@@ -228,7 +227,6 @@ export default function VehicleTracking() {
               <tr>
                 <th>#</th>
                 <th>Vehicle Number</th>
-                <th>Driver</th>
                 <th>Location</th>
                 <th>Coordinates</th>
                 <th>Speed</th>
@@ -244,7 +242,7 @@ export default function VehicleTracking() {
             <tbody>
               {currentLogs.length === 0 ? (
                 <tr>
-                  <td colSpan="12" style={{ textAlign: "center", padding: "2rem" }}>
+                  <td colSpan="11" style={{ textAlign: "center", padding: "2rem" }}>
                     No tracking logs found
                   </td>
                 </tr>
@@ -265,7 +263,6 @@ export default function VehicleTracking() {
                           {log.vehicleNo}
                         </span>
                       </td>
-                      <td>{log.driver}</td>
                       <td>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                           <MapPin size={14} color="#666" />
@@ -542,14 +539,6 @@ function LocationMapModal({ log, onClose }) {
               borderBottom: "1px solid #e0e0e0",
             }}
           >
-            <div>
-              <p style={{ margin: 0, fontSize: "0.8rem", color: "#666", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                Driver
-              </p>
-              <p style={{ margin: "0.25rem 0 0 0", fontWeight: "500", fontSize: "0.95rem" }}>
-                {log.driver}
-              </p>
-            </div>
             <div>
               <p style={{ margin: 0, fontSize: "0.8rem", color: "#666", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                 Speed
