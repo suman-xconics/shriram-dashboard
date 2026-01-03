@@ -97,7 +97,7 @@ export default function Dashboard() {
 
   const handleFileChange = async (event) => {
     const file = event.target.files[0];
-    
+
     if (!file) return;
 
     const allowedTypes = [
@@ -106,10 +106,10 @@ export default function Dashboard() {
       'text/csv'
     ];
 
-    if (!allowedTypes.includes(file.type) && 
-        !file.name.endsWith('.xlsx') && 
-        !file.name.endsWith('.xls') && 
-        !file.name.endsWith('.csv')) {
+    if (!allowedTypes.includes(file.type) &&
+      !file.name.endsWith('.xlsx') &&
+      !file.name.endsWith('.xls') &&
+      !file.name.endsWith('.csv')) {
       alert('Please upload an Excel file (.xlsx, .xls) or CSV file');
       return;
     }
@@ -359,8 +359,8 @@ export default function Dashboard() {
           position: 'relative',
           maxWidth: '500px'
         }}>
-          <Search 
-            size={20} 
+          <Search
+            size={20}
             style={{
               position: 'absolute',
               left: '1rem',
@@ -368,7 +368,7 @@ export default function Dashboard() {
               transform: 'translateY(-50%)',
               color: '#9CA3AF',
               pointerEvents: 'none'
-            }} 
+            }}
           />
           <input
             ref={searchInputRef}
@@ -577,8 +577,8 @@ export default function Dashboard() {
                     transition: 'background-color 0.15s',
                     cursor: 'pointer'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
                     <td style={cellStyle}>{req.id}</td>
                     <td style={cellStyle}>
@@ -620,13 +620,17 @@ export default function Dashboard() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          transition: 'background-color 0.15s'
+                          transition: 'background-color 0.15s',
+
+                          // add these:
+                          color: '#000' // makes <Eye /> black because it uses currentColor
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E5E7EB'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#E5E7EB')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#F3F4F6')}
                       >
                         <Eye size={16} />
                       </button>
+
                     </td>
                   </tr>
                 ))
@@ -792,18 +796,25 @@ function TicketModal({ requisition, branchData, onClose }) {
               {requisition.requisitionNo}
             </p>
           </div>
-          <button onClick={onClose} style={{
-            padding: '0.5rem',
-            backgroundColor: '#F3F4F6',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: '0.5rem',
+              backgroundColor: '#F3F4F6',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+
+              // add this:
+              color: '#000'
+            }}
+          >
             <X size={20} />
           </button>
+
         </div>
 
         {/* CONTENT */}
