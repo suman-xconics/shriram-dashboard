@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { getInstallationRequisitions } from "../api/installationRequisitionApi";
 import { getLenderBranchById } from "../api/lenderBranchApi";
-import { Eye, X, Upload } from "lucide-react";
+import { Eye, X, Upload, Search } from "lucide-react";
 import "./Dashboard.css";
 
 export default function Dashboard() {
   const [filter, setFilter] = useState("ALL");
+  const [searchTerm, setSearchTerm] = useState("");
   const [requisitions, setRequisitions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -14,6 +15,7 @@ export default function Dashboard() {
   const [branchData, setBranchData] = useState({});
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   /* =====================
      FETCH DATA ON MOUNT
@@ -21,6 +23,13 @@ export default function Dashboard() {
   useEffect(() => {
     fetchRequisitions();
   }, []);
+
+  // Clear search when filter changes to ALL
+  useEffect(() => {
+    if (filter === "ALL") {
+      setSearchTerm("");
+    }
+  }, [filter]);
 
   const fetchRequisitions = async () => {
     setLoading(true);
@@ -141,7 +150,7 @@ export default function Dashboard() {
   };
 
   /* =====================
-     GET BRANCH NAME
+     HELPER FUNCTIONS
      ===================== */
   const getBranchName = (branchId) => {
     if (!branchId) return "N/A";
@@ -149,18 +158,12 @@ export default function Dashboard() {
     return branch?.branchName || "Loading...";
   };
 
-  /* =====================
-     GET STATE FROM BRANCH DATA
-     ===================== */
   const getState = (branchId) => {
     if (!branchId) return "N/A";
     const branch = branchData[branchId];
     return branch?.state || "N/A";
   };
 
-  /* =====================
-     FORMAT DATE FOR TABLE
-     ===================== */
   const formatTableDate = (isoDateString) => {
     if (!isoDateString) return "N/A";
     try {
@@ -177,41 +180,69 @@ export default function Dashboard() {
     }
   };
 
-  /* =====================
-     MAP STATUS TO DISPLAY
-     ===================== */
   const getDisplayStatus = (status) => {
     const statusMap = {
       NEW: "Opened",
       IN_PROGRESS: "In Progress",
       COMPLETED: "Closed",
+      PENDING: "Opened"
     };
     return statusMap[status] || status;
   };
 
-  /* =====================
-     FILTER ONLY SPECIFIC STATUSES
-     ===================== */
+  const getStatusStyle = (status) => {
+    const styles = {
+      NEW: {
+        backgroundColor: '#DBEAFE',
+        color: '#1E40AF'
+      },
+      PENDING: {
+        backgroundColor: '#DBEAFE',
+        color: '#1E40AF'
+      },
+      IN_PROGRESS: {
+        backgroundColor: '#FEF3C7',
+        color: '#92400E'
+      },
+      COMPLETED: {
+        backgroundColor: '#D1FAE5',
+        color: '#065F46'
+      }
+    };
+    return styles[status] || styles.NEW;
+  };
+
   const allowedStatuses = ["PENDING", "IN_PROGRESS", "COMPLETED"];
 
+  /* =====================
+     FILTERED DATA
+     ===================== */
   const filteredRequisitions = useMemo(() => {
     let filtered = requisitions.filter((r) => allowedStatuses.includes(r.status));
 
-    if (filter === "ALL") return filtered;
+    // Apply status filter
+    if (filter !== "ALL") {
+      const filterMap = {
+        Opened: "PENDING",
+        "In Progress": "IN_PROGRESS",
+        Closed: "COMPLETED",
+      };
+      const actualStatus = filterMap[filter];
+      filtered = filtered.filter((r) => r.status === actualStatus);
+    }
 
-    const filterMap = {
-      Opened: "PENDING",
-      "In Progress": "IN_PROGRESS",
-      Closed: "COMPLETED",
-    };
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter((r) =>
+        r.vehicleNo?.toLowerCase().includes(searchLower) ||
+        r.requisitionNo?.toLowerCase().includes(searchLower)
+      );
+    }
 
-    const actualStatus = filterMap[filter];
-    return filtered.filter((r) => r.status === actualStatus);
-  }, [requisitions, filter]);
+    return filtered;
+  }, [requisitions, filter, searchTerm]);
 
-  /* =====================
-     COUNTS (ONLY ALLOWED STATUSES)
-     ===================== */
   const counts = useMemo(() => {
     const allowedRequisitions = requisitions.filter((r) =>
       allowedStatuses.includes(r.status)
@@ -226,18 +257,6 @@ export default function Dashboard() {
   }, [requisitions]);
 
   /* =====================
-     STATUS BADGE STYLE
-     ===================== */
-  const getStatusClass = (status) => {
-    const classMap = {
-      NEW: "opened",
-      IN_PROGRESS: "in-progress",
-      COMPLETED: "closed",
-    };
-    return classMap[status] || "";
-  };
-
-  /* =====================
      MODAL HANDLERS
      ===================== */
   const handleViewDetails = (requisition) => {
@@ -248,6 +267,11 @@ export default function Dashboard() {
   const handleCloseModal = () => {
     setShowModal(false);
     setSelectedRequisition(null);
+  };
+
+  const clearSearch = () => {
+    setSearchTerm("");
+    searchInputRef.current?.focus();
   };
 
   return (
@@ -322,33 +346,146 @@ export default function Dashboard() {
         <SummaryCard title="Closed" value={counts.closed} color="#14B8A6" />
       </div>
 
-      {/* FILTERS */}
+      {/* FILTERS & SEARCH */}
       <div style={{
         padding: '0 1.5rem 1rem 1.5rem',
         display: 'flex',
-        gap: '0.5rem',
+        flexDirection: 'column',
+        gap: '1rem',
         flexShrink: 0
       }}>
-        {["ALL", "Opened", "In Progress", "Closed"].map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
+        {/* Search Bar */}
+        <div style={{
+          position: 'relative',
+          maxWidth: '500px'
+        }}>
+          <Search 
+            size={20} 
             style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: filter === s ? '#4F46E5' : 'white',
-              color: filter === s ? 'white' : '#374151',
-              border: '1px solid #e5e7eb',
-              borderRadius: '6px',
+              position: 'absolute',
+              left: '1rem',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: '#9CA3AF',
+              pointerEvents: 'none'
+            }} 
+          />
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search by Vehicle No. or Requisition No."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '0.75rem 1rem 0.75rem 3rem',
+              border: '2px solid #E5E7EB',
+              borderRadius: '12px',
               fontSize: '0.875rem',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
+              backgroundColor: 'white',
+              transition: 'all 0.2s ease',
+              outline: 'none'
             }}
-          >
-            {s}
-          </button>
-        ))}
+            onFocus={(e) => {
+              if (!searchTerm) {
+                e.target.style.borderColor = '#4F46E5';
+                e.target.style.boxShadow = '0 0 0 3px rgba(79, 70, 229, 0.1)';
+              }
+            }}
+            onBlur={(e) => {
+              if (!searchTerm) {
+                e.target.style.borderColor = '#E5E7EB';
+                e.target.style.boxShadow = 'none';
+              }
+            }}
+          />
+          {searchTerm && (
+            <button
+              onClick={clearSearch}
+              style={{
+                position: 'absolute',
+                right: '0.75rem',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                color: '#9CA3AF',
+                cursor: 'pointer',
+                padding: '0.25rem',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+                width: '24px',
+                height: '24px'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#F3F4F6';
+                e.target.style.color = '#374151';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#9CA3AF';
+              }}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
+
+        {/* Status Filters */}
+        <div style={{
+          display: 'flex',
+          gap: '0.5rem',
+          flexWrap: 'wrap'
+        }}>
+          {["ALL", "Opened", "In Progress", "Closed"].map((s) => (
+            <button
+              key={s}
+              onClick={() => setFilter(s)}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: filter === s ? '#4F46E5' : 'white',
+                color: filter === s ? 'white' : '#374151',
+                border: `1px solid ${filter === s ? '#4F46E5' : '#e5e7eb'}`,
+                borderRadius: '8px',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={(e) => {
+                if (filter !== s) {
+                  e.target.style.backgroundColor = '#F3F4F6';
+                  e.target.style.borderColor = '#D1D5DB';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (filter !== s) {
+                  e.target.style.backgroundColor = 'white';
+                  e.target.style.borderColor = '#e5e7eb';
+                }
+              }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Search Results Info */}
+      {searchTerm.trim() && filteredRequisitions.length < requisitions.filter(r => allowedStatuses.includes(r.status)).length && (
+        <div style={{
+          padding: '0 1.5rem 1rem 1.5rem',
+          color: '#6B7280',
+          fontSize: '0.875rem',
+          flexShrink: 0
+        }}>
+          Showing {filteredRequisitions.length} of {counts.total} tickets for "{searchTerm}"
+        </div>
+      )}
 
       {/* ERROR MESSAGE */}
       {error && (
@@ -365,7 +502,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* TABLE CONTAINER - FIXED */}
+      {/* TABLE CONTAINER */}
       <div style={{
         flex: 1,
         margin: '0 1.5rem 1.5rem 1.5rem',
@@ -375,14 +512,14 @@ export default function Dashboard() {
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        minHeight: 0 // Important for proper flex behavior
+        minHeight: 0
       }}>
         <div style={{
           overflowX: 'auto',
           overflowY: 'auto',
           flex: 1,
           position: 'relative',
-          WebkitOverflowScrolling: 'touch' // Smooth scrolling on iOS
+          WebkitOverflowScrolling: 'touch'
         }}>
           <table style={{
             width: 'max-content',
@@ -431,7 +568,7 @@ export default function Dashboard() {
               ) : filteredRequisitions.length === 0 ? (
                 <tr>
                   <td colSpan="12" style={{ ...cellStyle, textAlign: 'center', padding: '3rem' }}>
-                    No tickets found
+                    {searchTerm.trim() ? `No tickets found for "${searchTerm}"` : "No tickets found"}
                   </td>
                 </tr>
               ) : (
@@ -448,7 +585,7 @@ export default function Dashboard() {
                       <strong style={{ fontWeight: '600' }}>{req.requisitionNo}</strong>
                     </td>
                     <td style={cellStyle}>{formatTableDate(req.createdAt)}</td>
-                    <td style={cellStyle}>{req.branch.branchCode || "N/A"}</td>
+                    <td style={cellStyle}>{req.branch?.branchCode || "N/A"}</td>
                     <td style={cellStyle}>{getBranchName(req.branchId)}</td>
                     <td style={cellStyle}>{req.vehicleNo}</td>
                     <td style={cellStyle}>{req.customerName}</td>
@@ -470,7 +607,10 @@ export default function Dashboard() {
                     </td>
                     <td style={cellStyle}>
                       <button
-                        onClick={() => handleViewDetails(req)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewDetails(req);
+                        }}
                         style={{
                           padding: '0.375rem',
                           backgroundColor: '#F3F4F6',
@@ -508,7 +648,9 @@ export default function Dashboard() {
   );
 }
 
-// Styles
+/* =====================
+   STYLES
+   ===================== */
 const headerStyle = {
   padding: '0.75rem 1rem',
   textAlign: 'left',
@@ -527,24 +669,6 @@ const cellStyle = {
   borderBottom: '1px solid #F3F4F6',
   whiteSpace: 'nowrap',
   color: '#374151'
-};
-
-const getStatusStyle = (status) => {
-  const styles = {
-    NEW: {
-      backgroundColor: '#DBEAFE',
-      color: '#1E40AF'
-    },
-    IN_PROGRESS: {
-      backgroundColor: '#FEF3C7',
-      color: '#92400E'
-    },
-    COMPLETED: {
-      backgroundColor: '#D1FAE5',
-      color: '#065F46'
-    }
-  };
-  return styles[status] || styles.NEW;
 };
 
 /* =====================
@@ -603,8 +727,31 @@ function TicketModal({ requisition, branchData, onClose }) {
       NEW: "Opened",
       IN_PROGRESS: "In Progress",
       COMPLETED: "Closed",
+      PENDING: "Opened"
     };
     return statusMap[status] || status;
+  };
+
+  const getStatusStyle = (status) => {
+    const styles = {
+      NEW: {
+        backgroundColor: '#DBEAFE',
+        color: '#1E40AF'
+      },
+      PENDING: {
+        backgroundColor: '#DBEAFE',
+        color: '#1E40AF'
+      },
+      IN_PROGRESS: {
+        backgroundColor: '#FEF3C7',
+        color: '#92400E'
+      },
+      COMPLETED: {
+        backgroundColor: '#D1FAE5',
+        color: '#065F46'
+      }
+    };
+    return styles[status] || styles.NEW;
   };
 
   return (
@@ -759,7 +906,9 @@ function TicketModal({ requisition, branchData, onClose }) {
   );
 }
 
-// Helper Components for Modal
+/* =====================
+   MODAL HELPER COMPONENTS
+   ===================== */
 function Section({ title, children }) {
   return (
     <div style={{ marginBottom: '1.5rem' }}>
