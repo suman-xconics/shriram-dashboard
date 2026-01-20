@@ -6,6 +6,7 @@ import Footer from "./components/Footer";
 
 import Dashboard from "./pages/Dashboard";
 import CreateUser from "./pages/CreateUser";
+import SupportTickets from "./pages/SupportTickets";
 
 /* LENDER */
 import LenderMaster from "./pages/LenderMaster";
@@ -144,6 +145,10 @@ export default function App() {
           <Route path="/tracker" element={<TrackerPage />} />
           <Route path="/tracker/map/:vehicleNo" element={<TrackerMap />} />
           <Route path="/vehicle-tracking" element={<VehicleTracking />} />
+
+                    {/* Support Tickets */}
+          <Route path="/support-tickets" element={<SupportTickets />} />
+
         </Routes>
 
         {/* ✅ GLOBAL FOOTER */}

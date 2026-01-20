@@ -5,6 +5,7 @@ import {
   Building2,
   MapPin,
   List,
+  Tags,
 } from "lucide-react";
 import "./Sidebar.css";
 
@@ -75,6 +76,21 @@ export default function Sidebar({ isOpen, isMobile, closeSidebar }) {
         >
           <span className="nav-icon"><List size={20} /></span>
           {isOpen && <span className="nav-label">Vehicle Tracking</span>}
+        </NavLink>
+
+        <NavLink
+          to="/support-tickets"
+          className={({ isActive }) =>
+            `nav-item ${isActive ? "active" : ""}`
+          }
+          onClick={handleNavClick}
+        >
+          <span className="nav-icon">
+            <Tags size={20} strokeWidth={1.8} />
+          </span>
+          {isOpen && <span className="nav-label">
+            Support Tickets
+            </span>}
         </NavLink>
       </nav>
 
