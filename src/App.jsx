@@ -50,9 +50,8 @@ import ReceiveDeviceMovement from "./pages/ReceiveDeviceMovement";
 import DeviceMovementDetail from "./pages/DeviceMovementDetail";
 
 /* TRACKER */
-import TrackerPage from "./pages/TrackerPage";
-import TrackerMap from "./pages/TrackerMap";
-import VehicleTracking from "./pages/VehicleTracking";
+import VehicleList from "./pages/VehicleList";
+import VehicleAlerts from "./pages/VehicleAlertPage";
 
 import "./App.css";
 
@@ -126,8 +125,14 @@ export default function App() {
           {/* LENDER BRANCH */}
           <Route path="/lender-branches" element={<LenderBranchMaster />} />
           <Route path="/lender-branches/add" element={<EditLenderBranch />} />
-          <Route path="/lender-branches/edit/:id" element={<EditLenderBranch />} />
-          <Route path="/lender-branches/view/:id" element={<ViewLenderBranch />} />
+          <Route
+            path="/lender-branches/edit/:id"
+            element={<EditLenderBranch />}
+          />
+          <Route
+            path="/lender-branches/view/:id"
+            element={<ViewLenderBranch />}
+          />
 
           {/* DEVICE */}
           <Route path="/devices" element={<DeviceMaster />} />
@@ -137,18 +142,25 @@ export default function App() {
 
           {/* DEVICE MOVEMENT */}
           <Route path="/device-movement" element={<DeviceMovementMaster />} />
-          <Route path="/device-movement/create/:deviceId" element={<CreateDeviceMovement />} />
-          <Route path="/device-movement/receive/:movementId" element={<ReceiveDeviceMovement />} />
-          <Route path="/device-movement/view/:id" element={<DeviceMovementDetail />} />
+          <Route
+            path="/device-movement/create/:deviceId"
+            element={<CreateDeviceMovement />}
+          />
+          <Route
+            path="/device-movement/receive/:movementId"
+            element={<ReceiveDeviceMovement />}
+          />
+          <Route
+            path="/device-movement/view/:id"
+            element={<DeviceMovementDetail />}
+          />
 
-          {/* TRACKER */}
-          <Route path="/tracker" element={<TrackerPage />} />
-          <Route path="/tracker/map/:vehicleNo" element={<TrackerMap />} />
-          <Route path="/vehicle-tracking" element={<VehicleTracking />} />
+          {/* Vehicle List */}
+          <Route path="/vehicles" element={<VehicleList />} />
+          <Route path="/vehicles-alerts" element={<VehicleAlerts />} />
 
-                    {/* Support Tickets */}
+          {/* Support Tickets */}
           <Route path="/support-tickets" element={<SupportTickets />} />
-
         </Routes>
 
         {/* ✅ GLOBAL FOOTER */}

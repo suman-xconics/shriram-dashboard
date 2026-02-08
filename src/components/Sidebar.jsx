@@ -6,6 +6,7 @@ import {
   MapPin,
   List,
   Tags,
+  AlertCircle,
 } from "lucide-react";
 import "./Sidebar.css";
 
@@ -54,28 +55,31 @@ export default function Sidebar({ isOpen, isMobile, closeSidebar }) {
           {isOpen && <span className="nav-label">Lender Branch</span>}
         </NavLink>
 
+
         {/* Vehicle List */}
         <NavLink
-          to="/tracker"
+          to="/vehicles"
           className={({ isActive }) =>
             `nav-item ${isActive ? "active" : ""}`
           }
           onClick={handleNavClick}
         >
-          <span className="nav-icon"><MapPin size={20} /></span>
+          <span className="nav-icon">
+            <MapPin size={20} strokeWidth={1.8} />
+          </span>
           {isOpen && <span className="nav-label">Vehicle List</span>}
         </NavLink>
-
-        {/* ✅ NEW VEHICLE TRACKING */}
         <NavLink
-          to="/vehicle-tracking"
+          to="/vehicles-alerts"
           className={({ isActive }) =>
             `nav-item ${isActive ? "active" : ""}`
           }
           onClick={handleNavClick}
         >
-          <span className="nav-icon"><List size={20} /></span>
-          {isOpen && <span className="nav-label">Vehicle Tracking</span>}
+          <span className="nav-icon">
+            <AlertCircle size={20} strokeWidth={1.8} />
+          </span>
+          {isOpen && <span className="nav-label">Vehicle Alerts</span>}
         </NavLink>
 
         <NavLink
